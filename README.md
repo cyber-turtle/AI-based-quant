@@ -2,7 +2,7 @@
 
 **Cortex** is a next-generation automated trading system that combines high-frequency signal processing with a Retrieval-Augmented Generation (RAG) AI brain to make informed, context-aware trading decisions.
 
-![Dashboard](docs/images/dashboard_preview.png)
+![Dashboard](docs/images/image.png)
 
 ## 🚀 Key Features
 
@@ -44,7 +44,7 @@ graph TD
     D <-->|Inference| F[Ollama AI]
     D -->|Validated Signal| G[Execution Engine]
     G --> A
-    B --> H[Web Dashboard (Flask)]
+    B --> H["Web Dashboard (Flask)"]
     G --> H
 ```
 
@@ -61,10 +61,22 @@ graph TD
     - Enter your MT5 and Telegram credentials. (See `SETUP_GUIDE.md` for details).
 
 3.  **Run the System**:
+
+    The system requires two separate terminals:
+
+    **Terminal 1: MT5 Bridge** (Must run first!)
+
     ```bash
-    # Starts the Dashboard & Trading Engine
+    cd mt5-bridge
+    py main.py
+    ```
+
+    **Terminal 2: Core System**
+
+    ```bash
     py run.py
     ```
+
     Access the UI at: `http://127.0.0.1:5000`
 
 ## 🧠 Training & Offline Mode
