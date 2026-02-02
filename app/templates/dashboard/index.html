@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cortex Zero-Latency Terminal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #020617;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.5);
+            border-radius: 1.5rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.8));
+            border: 1px solid rgba(71, 85, 105, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stat-card:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-glow {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-glow::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: 0.5s;
+        }
+
+        .btn-glow:hover::after {
+            left: 100%;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.33); opacity: 1; }
+            80%, 100% { opacity: 0; }
+        }
+
+        .live-dot {
+            position: relative;
+        }
+
+        .live-dot::before {
+            content: '';
+            position: absolute;
+            top: -4px; right: -4px; bottom: -4px; left: -4px;
+            border: 2px solid #22c55e;
+            border-radius: 50%;
+            animation: pulse-ring 1.5s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+        }
+    </style>
+</head>
+<body class="p-4 lg:p-8 min-h-screen">
+
+    <!-- NAVIGATION / HEADER -->
+    <header class="flex flex-col lg:flex-row justify-between items-center mb-8 gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-black tracking-tighter text-white">CORTEX <span class="text-indigo-400">AI</span></h1>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span id="ws-indicator" class="w-2 h-2 rounded-full bg-green-500"></span>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">AI Assisted Trading Hub</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800">
+            <button id="btn-tab-trading" onclick="switchTab('trading')" class="tab-btn px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-xl shadow-indigo-600/20 btn-glow">TRADING</button>
+            <button id="btn-tab-strategies" onclick="switchTab('strategies')" class="tab-btn px-5 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all">STRATEGIES</button>
+            <button id="btn-tab-signals" onclick="switchTab('signals')" class="tab-btn px-5 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all">SIGNALS</button>
+            <button id="btn-tab-settings" onclick="switchTab('settings')" class="tab-btn px-5 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                SETTINGS
+            </button>
+            <div class="w-px h-6 bg-slate-800 mx-2"></div>
+            <a href="/auth/logout" class="px-4 py-2 text-slate-500 hover:text-red-400 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </a>
+        </div>
+    </header>
+
+    <!-- MAIN GRID -->
+    <main class="grid grid-cols-12 gap-6">
+        
+        <!-- LEFT COLUMN: STATS AND CHART -->
+        <section id="trading-tab" class="tab-content col-span-12 xl:col-span-9 space-y-6">
+            
+            <!-- TOP STATS BAR -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="stat-card p-5 rounded-3xl relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                        </div>
+                        <span class="text-[10px] font-bold text-green-400 bg-green-400/10 px-2 py-0.5 rounded-md border border-green-400/20">LIVE</span>
+                    </div>
+                    <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Net Liquidity</p>
+                    <h3 id="equity" class="text-2xl font-black text-white mt-1">$0.00</h3>
+                    <div class="mt-2 text-[10px] text-slate-500 font-medium">Balance: <span id="balance">$0.00</span></div>
+                </div>
+
+                <div class="stat-card p-5 rounded-3xl">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                        </div>
+                    </div>
+                    <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Floating P&L</p>
+                    <h3 id="daily-pnl" class="text-2xl font-black text-white mt-1">$0.00</h3>
+                    <div class="mt-2 text-[10px] text-slate-500 font-medium font-bold uppercase tracking-widest">Session Performance</div>
+                </div>
+
+                <div class="stat-card p-5 rounded-3xl">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        </div>
+                    </div>
+                    <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Active Exposure</p>
+                    <h3 id="position-count" class="text-2xl font-black text-white mt-1">0</h3>
+                    <div class="mt-2 text-[10px] text-slate-500 font-medium uppercase tracking-widest">Open Positions</div>
+                </div>
+
+                <div class="stat-card p-5 rounded-3xl border-indigo-500/30">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9"></path></svg>
+                        </div>
+                        <div id="live-indicator" class="w-2 h-2 rounded-full bg-green-500 live-dot"></div>
+                    </div>
+                    <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Market Feed</p>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span id="current-bid" class="text-2xl font-black text-white">0.00000</span>
+                        <span id="spread-display" class="text-[10px] font-bold text-slate-500 uppercase">S: 0</span>
+                    </div>
+                    <div class="mt-2 text-[10px] text-slate-500 font-medium uppercase tracking-widest">MT5 Direct Connection</div>
+                </div>
+            </div>
+
+            <!-- CHART PANEL -->
+            <div class="glass-panel p-6">
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                    <div class="flex items-center gap-6">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Active Symbol</p>
+                            <div class="flex items-center gap-2 cursor-pointer group" onclick="document.getElementById('symbol-menu').classList.toggle('hidden')">
+                                <span class="w-6 h-6 bg-indigo-500 rounded flex items-center justify-center text-[10px] font-black italic">FX</span>
+                                <h2 id="chart-symbol" class="text-lg font-black text-white tracking-tight">EURUSD</h2>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                            </div>
+                            <!-- Symbol Dropdown -->
+                            <div id="symbol-menu" class="hidden absolute top-12 left-0 z-50 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2">
+                                <div onclick="setSymbol('EURUSD'); document.getElementById('symbol-menu').classList.add('hidden')" class="p-2 hover:bg-slate-800 rounded-lg cursor-pointer text-xs font-bold text-white">EURUSD</div>
+                                <div onclick="setSymbol('GBPUSD'); document.getElementById('symbol-menu').classList.add('hidden')" class="p-2 hover:bg-slate-800 rounded-lg cursor-pointer text-xs font-bold text-white">GBPUSD</div>
+                                <div onclick="setSymbol('USDJPY'); document.getElementById('symbol-menu').classList.add('hidden')" class="p-2 hover:bg-slate-800 rounded-lg cursor-pointer text-xs font-bold text-white">USDJPY</div>
+                                <div onclick="setSymbol('XAUUSD'); document.getElementById('symbol-menu').classList.add('hidden')" class="p-2 hover:bg-slate-800 rounded-lg cursor-pointer text-xs font-bold text-white">XAUUSD</div>
+                                <div onclick="setSymbol('BTCUSD'); document.getElementById('symbol-menu').classList.add('hidden')" class="p-2 hover:bg-slate-800 rounded-lg cursor-pointer text-xs font-bold text-white">BTCUSD</div>
+                            </div>
+                        </div>
+                        <div class="h-8 w-px bg-slate-800"></div>
+                        <div class="flex bg-slate-900/50 p-1 rounded-xl border border-slate-800">
+                            <button onclick="setTimeframe('M1')" data-timeframe="M1" class="px-3 py-1 rounded-lg text-[10px] font-bold bg-indigo-600 text-white">M1</button>
+                            <button onclick="setTimeframe('M5')" data-timeframe="M5" class="px-3 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-white">M5</button>
+                            <button onclick="setTimeframe('M15')" data-timeframe="M15" class="px-3 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-white">M15</button>
+                            <button onclick="setTimeframe('H1')" data-timeframe="H1" class="px-3 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-white">H1</button>
+                            <button onclick="setTimeframe('D1')" data-timeframe="D1" class="px-3 py-1 rounded-lg text-[10px] font-bold text-slate-500 hover:text-white">D1</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="toggleIndicators()" class="px-4 py-2 rounded-xl text-xs font-bold border border-slate-700 hover:border-indigo-500 transition-all text-slate-300">INDICATORS</button>
+                        <button onclick="toggleTerminal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-black hover:bg-slate-200 transition-all">TERMINAL</button>
+                    </div>
+                </div>
+
+                <!-- THE CHART -->
+                <div id="chart-container" class="rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
+                    <!-- LightweightCharts will inject here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- STRATEGIES TAB -->
+        <section id="strategies-tab" class="tab-content hidden col-span-12 xl:col-span-9 space-y-6">
+            <div class="glass-panel p-8">
+                <h2 class="text-xl font-black text-white mb-6 uppercase tracking-tighter italic">Active AI Playbooks</h2>
+                <div id="strategies-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Loaded via JS -->
+                </div>
+                <div class="mt-12 p-6 bg-indigo-500/5 border border-indigo-500/20 rounded-2xl">
+                    <h4 class="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2">How It Works: Hybrid Execution</h4>
+                    <p class="text-[11px] text-slate-400 leading-relaxed mb-4">
+                        The app uses a 3-layer validation process before taking any trade:
+                        <br>1. <b>Quant Engine</b>: Scans all MT5 pairs for technical setups (Math-only).
+                        <br>2. <b>AI Brain (Llama 3.1)</b>: Validates the setup against market context and news.
+                        <br>3. <b>ML Probability</b>: Evaluates the historical success rate of similar setups.
+                    </p>
+                    <p class="text-[11px] text-slate-400 leading-relaxed italic">Note: "Simulation Mode" in settings allows you to test this entire pipeline with mock data, while "Halt" or "Engage" on the dashboard controls live MT5 execution.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SIGNALS TAB -->
+        <section id="signals-tab" class="tab-content hidden col-span-12 xl:col-span-9 space-y-6">
+            <div class="glass-panel p-8">
+                <h2 class="text-xl font-black text-white mb-6 uppercase tracking-tighter italic">Live Signal Discovery</h2>
+                <div id="signals-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- SETTINGS TAB -->
+        <section id="settings-tab" class="tab-content hidden col-span-12 xl:col-span-9 space-y-6">
+            <div class="glass-panel p-8">
+                <h2 class="text-xl font-black text-white mb-6 uppercase tracking-tighter italic flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    System Configuration
+                </h2>
+                
+                <!-- System Status -->
+                <div class="mb-8 p-4 bg-slate-900/50 rounded-xl border border-slate-800">
+                    <h4 class="text-xs font-bold text-slate-500 uppercase mb-3">System Status</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                        <div><span class="text-slate-500">Data Mode:</span> <span id="status-data-mode" class="text-indigo-400 font-bold">-</span></div>
+                        <div><span class="text-slate-500">AI Status:</span> <span id="status-ai" class="text-indigo-400 font-bold">-</span></div>
+                        <div><span class="text-slate-500">AutoTrader:</span> <span id="status-auto" class="text-indigo-400 font-bold">-</span></div>
+                        <div><span class="text-slate-500">News Buffer:</span> <span id="status-news" class="text-indigo-400 font-bold">-</span></div>
+                    </div>
+                </div>
+
+                <!-- Risk Settings -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="stat-card p-5 rounded-2xl">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Risk Per Trade (%)</label>
+                        <input type="range" id="setting-risk" min="0.5" max="5" step="0.5" value="1" class="w-full accent-indigo-500" oninput="document.getElementById('risk-val').textContent = this.value + '%'">
+                        <span id="risk-val" class="text-lg font-black text-white">1%</span>
+                    </div>
+                    <div class="stat-card p-5 rounded-2xl">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Max Drawdown (%)</label>
+                        <input type="range" id="setting-drawdown" min="2" max="10" step="1" value="5" class="w-full accent-red-500" oninput="document.getElementById('dd-val').textContent = this.value + '%'">
+                        <span id="dd-val" class="text-lg font-black text-white">5%</span>
+                    </div>
+                    <div class="stat-card p-5 rounded-2xl">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">ML Probability Threshold (%)</label>
+                        <input type="range" id="setting-ml" min="50" max="80" step="5" value="60" class="w-full accent-green-500" oninput="document.getElementById('ml-val').textContent = this.value + '%'">
+                        <span id="ml-val" class="text-lg font-black text-white">60%</span>
+                    </div>
+                    <div class="stat-card p-5 rounded-2xl">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Quant Confidence (%)</label>
+                        <input type="range" id="setting-confidence" min="30" max="70" step="5" value="40" class="w-full accent-yellow-500" oninput="document.getElementById('conf-val').textContent = this.value + '%'">
+                        <span id="conf-val" class="text-lg font-black text-white">40%</span>
+                    </div>
+                    <div class="stat-card p-5 rounded-2xl">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Min Risk/Reward (Filter)</label>
+                        <input type="range" id="setting-min-rr" min="1.0" max="3.0" step="0.1" value="1.5" class="w-full accent-blue-500" oninput="document.getElementById('min-rr-val').textContent = this.value">
+                        <span id="min-rr-val" class="text-lg font-black text-white">1.5</span>
+                    </div>
+                    <div class="stat-card p-5 rounded-2xl">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Target Risk/Reward (Calib)</label>
+                        <input type="range" id="setting-target-rr" min="1.0" max="5.0" step="0.1" value="2.0" class="w-full accent-indigo-500" oninput="document.getElementById('target-rr-val').textContent = this.value">
+                        <span id="target-rr-val" class="text-lg font-black text-white">2.0</span>
+                    </div>
+                    <div class="stat-card p-5 rounded-2xl">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">News Buffer (mins)</label>
+                        <input type="range" id="setting-news" min="15" max="60" step="5" value="30" class="w-full accent-orange-500" oninput="document.getElementById('news-val').textContent = this.value + 'm'">
+                        <span id="news-val" class="text-lg font-black text-white">30m</span>
+                    </div>
+                    <div class="stat-card p-5 rounded-2xl lg:col-span-2">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Risk Profile Presets</label>
+                        <div class="flex items-center gap-3">
+                            <button onclick="applyRiskProfile('conservative')" class="flex-1 py-2 rounded-lg text-[9px] font-bold bg-slate-800 text-slate-300 hover:bg-green-600/20 hover:text-green-400 border border-slate-700 transition-all">CONSERVATIVE</button>
+                            <button onclick="applyRiskProfile('moderate')" class="flex-1 py-2 rounded-lg text-[9px] font-bold bg-slate-800 text-slate-300 hover:bg-indigo-600/20 hover:text-indigo-400 border border-slate-700 transition-all">MODERATE</button>
+                            <button onclick="applyRiskProfile('aggressive')" class="flex-1 py-2 rounded-lg text-[9px] font-bold bg-slate-800 text-slate-300 hover:bg-red-600/20 hover:text-red-400 border border-slate-700 transition-all">AGGRESSIVE</button>
+                        </div>
+                    </div>
+                    <div class="stat-card p-5 rounded-2xl flex flex-col justify-between bg-indigo-500/10 border-indigo-500/30">
+                        <label class="text-[10px] font-bold text-indigo-400 uppercase block mb-2">Systems Health</label>
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center bg-slate-900/50 p-2 rounded-lg">
+                                <span class="text-[10px] text-slate-500 font-bold uppercase">MT5 Live</span>
+                                <span id="health-mt5" class="text-[10px] font-black text-green-500">CONNECTED</span>
+                            </div>
+                            <div class="flex justify-between items-center bg-slate-900/50 p-2 rounded-lg">
+                                <span class="text-[10px] text-slate-500 font-bold uppercase">AI Brain</span>
+                                <span id="health-ai" class="text-[10px] font-black text-green-500">OPTIMAL</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Telegram Integration -->
+                    <div class="stat-card p-5 rounded-2xl lg:col-span-3 bg-indigo-500/5">
+                        <div class="flex justify-between items-center mb-4">
+                            <label class="text-[10px] font-bold text-indigo-400 uppercase flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                Telegram Alerts
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] text-slate-500 font-bold uppercase" id="tg-status-label">Enabled</span>
+                                <button onclick="toggleTelegram(true)" id="btn-tg-on" class="px-3 py-1 rounded bg-indigo-600 text-[10px] font-bold text-white">ON</button>
+                                <button onclick="toggleTelegram(false)" id="btn-tg-off" class="px-3 py-1 rounded bg-slate-800 text-[10px] font-bold text-slate-500">OFF</button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <input type="text" id="setting-tg-token" placeholder="Enter Bot Token (from @BotFather)" class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white placeholder-slate-600 mb-2">
+                            <div class="flex gap-2">
+                                <input type="text" id="setting-tg-chatid" placeholder="Enter Telegram Chat ID" class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white placeholder-slate-600">
+                                <button onclick="testTelegram()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 transition-all">TEST</button>
+                            </div>
+                            <p class="text-[9px] text-slate-500">Need your Chat ID? Message <a href="https://t.me/userinfobot" target="_blank" class="text-indigo-400 underline">@userinfobot</a> on Telegram.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategy Sandbox -->
+                <div class="mt-8 p-6 bg-indigo-500/[0.03] rounded-2xl border border-indigo-500/20">
+                    <h4 class="text-xs font-bold text-indigo-400 uppercase mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                        Strategy Sandbox
+                    </h4>
+                    <div class="mb-4 text-[10px] text-slate-500 bg-slate-900/50 p-2 rounded border border-slate-800">
+                        Use this sandbox to inject technical patterns (e.g., Bullish Engulfing) to test how the AI & Quant Engine respond. This does <b>not</b> execute real trades.
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Symbol</label>
+                            <select id="sim-symbol" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white">
+                                <option value="BTCUSD">BTCUSD</option>
+                                <option value="EURUSD">EURUSD</option>
+                                <option value="GBPUSD">GBPUSD</option>
+                                <option value="XAUUSD">XAUUSD</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Pattern</label>
+                            <select id="sim-pattern" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white">
+                                <option value="BULLISH_ENGULFING">Bullish Engulfing</option>
+                                <option value="BEARISH_DIVERGENCE">Bearish Divergence</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="injectPattern()" class="w-full py-2 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 rounded-lg text-indigo-400 font-bold text-[10px] transition-all">
+                                INJECT & TEST SIGNAL
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="saveSettings()" class="mt-8 w-full py-4 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-white font-bold text-sm shadow-xl shadow-indigo-600/20 transition-all flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    SAVE SETTINGS
+                </button>
+            </div>
+        </section>
+
+        <!-- INDICATORS OVERLAY -->
+        <div id="indicators-overlay" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onclick="toggleIndicators()">
+            <div class="glass-panel p-8 w-96 max-w-[90vw]" onclick="event.stopPropagation()">
+                <h3 class="text-lg font-black text-white mb-4 uppercase flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                    Live Indicators
+                </h3>
+                <div id="indicators-content" class="space-y-3 text-sm">
+                    <div class="flex justify-between"><span class="text-slate-500">RSI (14):</span><span id="ind-rsi" class="font-bold text-white">-</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">EMA 20:</span><span id="ind-ema20" class="font-bold text-white">-</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">EMA 50:</span><span id="ind-ema50" class="font-bold text-white">-</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">ATR:</span><span id="ind-atr" class="font-bold text-white">-</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Trend:</span><span id="ind-trend" class="font-bold">-</span></div>
+                </div>
+                <button onclick="toggleIndicators()" class="mt-6 w-full py-2 bg-slate-800 rounded-xl text-xs font-bold text-white">CLOSE</button>
+            </div>
+        </div>
+
+        <!-- TERMINAL OVERLAY -->
+        <div id="terminal-overlay" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onclick="toggleTerminal()">
+            <div class="glass-panel p-6 w-full max-w-4xl max-h-[80vh] flex flex-col" onclick="event.stopPropagation()">
+                <div class="flex items-center justify-between p-4 border-b border-slate-700/50">
+                    <h3 class="text-sm font-black text-white flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                        Terminal Output
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <button onclick="document.getElementById('terminal-content').innerHTML = ''" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[10px] font-bold text-slate-400 transition-all">CLEAR</button>
+                        <button onclick="toggleTerminal()" class="text-slate-500 hover:text-white transition-all">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="terminal-content" class="flex-1 overflow-y-auto bg-black/50 rounded-xl p-4 font-mono text-xs text-green-400 space-y-1 max-h-96">
+                    <!-- Logs will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: AUTO TRADER AND LOGS -->
+        <section class="col-span-12 xl:col-span-3 space-y-6">
+            
+            <!-- AUTO TRADER CONTROL -->
+            <div class="glass-panel p-6 border-indigo-500/20 bg-indigo-500/[0.03]">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-indigo-400">Assisted Autopilot</h3>
+                    <div id="bot-pulse" class="w-2 h-2 rounded-full bg-slate-700"></div>
+                </div>
+                
+                <div class="text-center py-4">
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Engine State</p>
+                    <h2 id="bot-status" class="text-4xl font-black text-slate-600 tracking-tighter italic">STANDBY</h2>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mt-6">
+                    <button onclick="toggleAutoTrader('start')" class="py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/20 transition-all active:scale-95">ENGAGE</button>
+                    <button onclick="toggleAutoTrader('stop')" class="py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all active:scale-95">HALT</button>
+                </div>
+
+                <div class="mt-6 space-y-3">
+                    <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+                        <span class="text-slate-500">Risk Profile</span>
+                        <span id="risk-profile-label" class="text-indigo-400">Safe / Idle</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+                        <div id="risk-meter-bar" class="bg-indigo-500 w-0 h-full shadow-[0_0_10px_#6366f1] transition-all duration-1000"></div>
+                    </div>
+                    <p class="text-[9px] text-slate-600 font-medium">Risk exposure is managed via dynamic equity scaling.</p>
+                </div>
+            </div>
+
+            <!-- REAL-TIME POSITIONS -->
+            <div class="glass-panel p-6">
+                <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Execution Depth</h3>
+                <div id="positions-list" class="space-y-3 max-h-48 overflow-y-auto scrollbar-hide">
+                    <p class="text-slate-500 text-[10px] font-bold text-center py-4 uppercase tracking-widest">No active orders</p>
+                </div>
+            </div>
+
+            <!-- BRAIN LOG -->
+            <div class="glass-panel p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">Cognitive Stream</h3>
+                    <div class="flex gap-1">
+                        <span class="w-1 h-1 rounded-full bg-slate-700"></span>
+                        <span class="w-1 h-1 rounded-full bg-slate-700"></span>
+                        <span class="w-1 h-1 rounded-full bg-slate-700"></span>
+                    </div>
+                </div>
+                <div id="brain-log" class="h-64 overflow-y-auto scrollbar-hide space-y-2 pr-2">
+                    <!-- Logs will appear here -->
+                    <div class="text-[10px] text-slate-600 italic">Initializing neural logs...</div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- FOOTER STATUS -->
+    <footer class="mt-8 pt-8 border-t border-slate-900 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-slate-600">
+        <div class="flex gap-6">
+            <div class="flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                <span>System: Optimal</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                <span>Latency: 12ms</span>
+            </div>
+        </div>
+        <div>&copy; 2026 CORTEX TRADING TECHNOLOGIES</div>
+    </footer>
+
+    <!-- LIBRARIES AND SCRIPTS -->
+    <script src="/static/js/realtime.js"></script>
+</body>
+</html>

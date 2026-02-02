@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div>
+    <div class="md:flex md:items-center md:justify-between mb-6">
+      <div class="min-w-0 flex-1">
+        <h2 class="text-2xl font-bold leading-7 text-white sm:truncate sm:text-3xl sm:tracking-tight">Active Strategies</h2>
+        <p class="mt-1 text-slate-400">Manage the 15+ algorithmic strategies ported from the legacy system.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {% for strategy in strategies %}
+        <div class="relative flex items-center space-x-3 rounded-lg border border-slate-700 bg-slate-800 px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-blue-500 hover:border-slate-600 transition">
+            <div class="flex-shrink-0">
+                <span class="inline-flex items-center justify-center h-10 w-10 rounded-lg {{ 'bg-green-500/10 text-green-500' if strategy.is_active else 'bg-slate-700 text-slate-400' }}">
+                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                    </svg>
+                </span>
+            </div>
+            <div class="min-w-0 flex-1">
+                <a href="#" class="focus:outline-none">
+                    <span class="absolute inset-0" aria-hidden="true"></span>
+                    <p class="text-sm font-medium text-white">{{ strategy.name }}</p>
+                    <p class="truncate text-sm text-slate-400">{{ strategy.type }}</p>
+                </a>
+            </div>
+            
+            <!-- Toggle Form -->
+            <form method="POST" class="relative z-10">
+                <input type="hidden" name="strategy_id" value="{{ strategy.id }}">
+                <button type="submit" class="{{ 'bg-green-600 hover:bg-green-500' if strategy.is_active else 'bg-slate-600 hover:bg-slate-500' }} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none">
+                    <span class="sr-only">Use setting</span>
+                    <span aria-hidden="true" class="{{ 'translate-x-5' if strategy.is_active else 'translate-x-0' }} pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                </button>
+            </form>
+        </div>
+        {% else %}
+        <div class="col-span-full text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+            <h3 class="mt-2 text-sm font-semibold text-white">No strategies found</h3>
+            <p class="mt-1 text-sm text-slate-400">Seeds haven't been run yet.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

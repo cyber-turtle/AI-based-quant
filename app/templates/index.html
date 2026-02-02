@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center">
+    <div class="text-center">
+        <h1 class="text-5xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 text-transparent bg-clip-text mb-4">CORTEX</h1>
+        <p class="text-xl text-slate-400 mb-8">Intelligent Trading System</p>
+        <div class="flex gap-4 justify-center">
+            <a href="{{ url_for('auth.login') }}" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition">Login</a>
+            <a href="{{ url_for('auth.register') }}" class="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold transition">Register</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
